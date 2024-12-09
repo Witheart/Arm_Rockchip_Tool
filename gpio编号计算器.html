@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>GPIO编号计算器</title>
+    <style>
+        /* 全局样式和字体设置 */
+        body {
+            font-family: Arial, sans-serif; /* 确保使用相同的字体 */
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+        }
+        .author {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        /* 输入区域容器使用Flexbox */
+        .input-container {
+            display: flex;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+            margin-top: 20px;
+            height: 300px; /* 增加高度以便输入更多行 */
+            box-sizing: border-box;
+        }
+
+        /* 行号区域样式 */
+        .line-numbers {
+            background-color: #f0f0f0;
+            color: #999;
+            padding: 10px 5px;
+            text-align: right;
+            user-select: none;
+            font-family: monospace; /* 使用等宽字体 */
+            font-size: 16px; /* 确保字号一致 */
+            line-height: 24px; /* 设置行高一致 */
+            width: 50px; /* 固定宽度 */
+            box-sizing: border-box;
+            overflow: hidden; /* 隐藏多余的行号部分 */
+        }
+        .line-numbers div {
+            height: 24px; /* 与textarea的行高一致 */
+        }
+
+        /* 文本区域样式 */
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            resize: none; /* 禁用手动调整大小 */
+            font-size: 16px; /* 确保字号一致 */
+            font-family: monospace; /* 使用等宽字体 */
+            line-height: 24px; /* 设置行高一致 */
+            overflow: auto; /* 启用滚动 */
+            box-sizing: border-box;
+        }
+        textarea:focus {
+            outline: none;
+        }
+
+        /* 按钮区域样式 */
+        .buttons {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        button#compute-btn, button#rules-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+        }
+        button#compute-btn {
+            background-color: #28a745;
+            color: #fff;
+        }
+        button#compute-btn:hover {
+            background-color: #218838;
+        }
+        button#rules-btn {
+            background-color: #17a2b8;
+            color: #fff;
+        }
+        button#rules-btn:hover {
+            background-color: #117a8b;
+        }
+
+        /* 输出区域样式 */
+        .output {
+            margin-top: 20px;
+        }
+        .output-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #fff;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .text-container {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .original-text {
+            font-size: 16px;
+            margin-right: 20px;
+            white-space: nowrap;
+        }
+        .gpio-text {
+            font-size: 16px;
+            color: #333;
+            white-space: nowrap;
+            margin-right: 10px;
+        }
+        .copy-btn {
+            padding: 6px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .copy-btn:hover {
+            background-color: #0056b3;
+        }
+
+        /* 错误提示样式 */
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+
+        /* 页脚样式 */
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 14px;
+            color: #888;
+        }
+
+        /* 复制提示样式 */
+        .copy-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #28a745;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 1000;
+        }
+        .copy-notification.show {
+            opacity: 1;
+        }
+
+        /* 模态窗口样式 */
+        .modal {
+            display: none; /* 默认隐藏 */
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; /* 启用滚动 */
+            background-color: rgba(0,0,0,0.5); /* 半透明背景 */
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: 5% auto; /* 相对于可视区域的位置 */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 60%; /* 宽度 */
+            border-radius: 4px;
+            position: relative;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            right: 20px;
+            top: 10px;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        /* 确保行号区域与文本框对齐 */
+        .line-numbers, textarea {
+            /* 统一的盒模型 */
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>GPIO编号计算器</h1>
+    <div class="author">作者: 吴思含</div>
+
+    <label for="gpio-input">请输入GPIO端口（每行一个）：</label>
+    <div class="input-container">
+        <div class="line-numbers" id="line-numbers">
+            <!-- 行号由JavaScript动态生成 -->
+        </div>
+        <textarea id="gpio-input" placeholder="例如：
+GPIO1_B0
+GPIO2_D7
+GPIO4_C4
+..."></textarea>
+    </div>
+    <div class="buttons">
+        <button id="compute-btn">计算</button>
+        <button id="rules-btn">计算规则</button>
+    </div>
+    <div id="error-message" class="error"></div>
+
+    <div class="output" id="output"></div>
+
+    <footer>
+        © 2024 吴思含
+    </footer>
+
+    <!-- 复制提示的容器 -->
+    <div id="copy-notification" class="copy-notification"></div>
+
+    <!-- 模态窗口 -->
+    <div id="rules-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>GPIO编号计算规则</h2>
+            <p>根据输入的GPIO端口，按照以下规则计算GPIO编号：</p>
+            <ol>
+                <li><strong>组号</strong>：<code>GPIO1</code> 对应第一组，<code>GPIO2</code> 对应第二组，依此类推。</li>
+                <li><strong>端口字母</strong>：<code>A</code> 对应0，<code>B</code> 对应1，依此类推。</li>
+                <li><strong>引脚号</strong>：直接使用输入的数字。</li>
+                <li><strong>计算公式</strong>：<code>GPIO编号 = 32 × 组号 + 8 × 端口字母值 + 引脚号</code></li>
+            </ol>
+            <h3>示例</h3>
+            <p>例如，计算 <code>GPIO2_A2</code> 的编号：</p>
+            <pre>
+GPIO编号 = 32 × 2（GPIO2为第二组） + 8 × 0（A对应0） + 2 = 66
+结果：gpio66
+            </pre>
+            <p>另一个示例，计算 <code>GPIO5_D6</code> 的编号：</p>
+            <pre>
+GPIO编号 = 32 × 5（GPIO5为第五组） + 8 × 3（D对应3） + 6 = 160 + 24 + 6 = 190
+结果：gpio190
+            </pre>
+            <p>根据您的需求，计算 <code>gpio154</code> 的编号：</p>
+            <pre>
+假设 GPIO 编号为 gpio154
+
+通过公式：
+154 = 32 × 组号 + 8 × 端口字母值 + 引脚号
+
+找到组号、端口字母值和引脚号满足上述等式。
+
+例如：
+32 × 4（GPIO4为第四组） + 8 × 3（D对应3） + 2 = 128 + 24 + 2 = 154
+结果：gpio154 → 对应 GPIO4_D2
+            </pre>
+        </div>
+    </div>
+
+    <script>
+        // 获取元素
+        const textarea = document.getElementById('gpio-input');
+        const lineNumbers = document.getElementById('line-numbers');
+        const computeBtn = document.getElementById('compute-btn');
+        const rulesBtn = document.getElementById('rules-btn');
+        const modal = document.getElementById('rules-modal');
+        const closeModalSpan = document.getElementsByClassName('close')[0];
+        const copyNotification = document.getElementById('copy-notification');
+        const errorDiv = document.getElementById('error-message');
+        const outputDiv = document.getElementById('output');
+
+        // 初始化行号
+        function updateLineNumbers() {
+            const lines = textarea.value.split('\n').length;
+            let lineNumbersContent = '';
+            for (let i = 1; i <= lines; i++) {
+                lineNumbersContent += `<div>${i}</div>`;
+            }
+            lineNumbers.innerHTML = lineNumbersContent || '1';
+        }
+
+        // 同步滚动
+        textarea.addEventListener('scroll', () => {
+            lineNumbers.scrollTop = textarea.scrollTop;
+        });
+
+        // 更新行号 on input
+        textarea.addEventListener('input', updateLineNumbers);
+
+        // 初始化行号 on page load
+        updateLineNumbers();
+
+        // 显示复制提示
+        function showCopyNotification(message) {
+            copyNotification.textContent = message;
+            copyNotification.classList.add('show');
+            setTimeout(() => {
+                copyNotification.classList.remove('show');
+            }, 2000); // 2秒后自动消失
+        }
+
+        // 计算按钮功能
+        computeBtn.addEventListener('click', () => {
+            const input = textarea.value;
+            const lines = input.split('\n');
+            outputDiv.innerHTML = '';
+            errorDiv.innerHTML = '';
+
+            lines.forEach((line, index) => {
+                const trimmedLine = line.trim();
+                if (trimmedLine === '') return; // 跳过空行
+
+                // 正则匹配 GPIO 格式，例如 GPIO1_B0 或 GPIO02_D7
+                const regex = /^GPIO(\d+)_([A-Z])(\d+)$/i;
+                const match = trimmedLine.match(regex);
+
+                if (match) {
+                    const groupNum = parseInt(match[1], 10);
+                    const portLetter = match[2].toUpperCase();
+                    const pinNum = parseInt(match[3], 10);
+
+                    // 计算 GPIO 编号
+                    const groupValue = 32 * groupNum;
+                    const letterValue = (portLetter.charCodeAt(0) - 65) * 8; // 'A' -> 0, 'B' -> 1, etc.
+                    const gpioNumber = groupValue + letterValue + pinNum;
+
+                    // 创建输出项
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'output-item';
+
+                    const textContainer = document.createElement('div');
+                    textContainer.className = 'text-container';
+
+                    const originalSpan = document.createElement('span');
+                    originalSpan.className = 'original-text';
+                    originalSpan.textContent = trimmedLine;
+
+                    const gpioSpan = document.createElement('span');
+                    gpioSpan.className = 'gpio-text';
+                    gpioSpan.textContent = `gpio${gpioNumber}`;
+
+                    textContainer.appendChild(originalSpan);
+                    textContainer.appendChild(gpioSpan);
+
+                    const copyBtn = document.createElement('button');
+                    copyBtn.className = 'copy-btn';
+                    copyBtn.textContent = '复制';
+                    copyBtn.addEventListener('click', () => {
+                        navigator.clipboard.writeText(gpioSpan.textContent)
+                            .then(() => {
+                                showCopyNotification(`已复制: ${gpioSpan.textContent}`);
+                            })
+                            .catch(err => {
+                                console.error('复制失败:', err);
+                            });
+                    });
+
+                    itemDiv.appendChild(textContainer);
+                    itemDiv.appendChild(copyBtn);
+                    outputDiv.appendChild(itemDiv);
+                } else {
+                    // 如果格式不正确，显示错误信息
+                    const errorItem = document.createElement('div');
+                    errorItem.textContent = `格式错误: "${trimmedLine}" (第 ${index + 1} 行)`;
+                    errorDiv.appendChild(errorItem);
+                }
+            });
+        });
+
+        // 打开模态窗口
+        rulesBtn.addEventListener('click', () => {
+            modal.style.display = 'block';
+        });
+
+        // 关闭模态窗口
+        closeModalSpan.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        // 点击模态窗口外部区域关闭
+        window.addEventListener('click', (event) => {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        });
+    </script>
+
+</body>
+</html>

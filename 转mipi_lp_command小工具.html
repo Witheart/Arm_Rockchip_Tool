@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIPI LP Command 转换工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        h1, h2, p {
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: white;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+        }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .button-container {
+            display: flex;
+            justify-content: flex-end; /* 按钮右对齐 */
+            margin: 10px 0;
+        }
+        .copy-success {
+            position: fixed; /* 固定在视图内 */
+            top: 20px; /* 距顶部20px */
+            right: 20px; /* 距右侧20px */
+            background-color: rgba(0, 128, 0, 0.8); /* 半透明绿色背景 */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            z-index: 1000; /* 确保浮窗在最上层 */
+            display: none; /* 默认隐藏 */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>MIPI LP Command 转换工具</h1>
+    <p>请输入寄存器表（格式：每行 <code>0xXX,0xYY,0xZZ</code>），然后点击“生成”按钮。</p>
+    <textarea id="input" placeholder="输入寄存器表，例如：&#10;0xFF,0x3A,0x5A&#10;0x00,0x0F,0x01"></textarea>
+    <div class="button-container">
+        <button onclick="generateCommand()">生成设备树</button>
+    </div>
+    <div class="header-container">
+        <h2>生成的设备树格式：</h2>
+        <button onclick="copyToClipboard()">一键复制设备树</button>
+    </div>
+    <pre id="output"></pre>
+    <div class="copy-success" id="copy-success">复制成功！</div>
+    <div class="footer">
+        <p>作者：吴思含（Witheart）</p>
+        <p>版本号：V1.0</p>
+        <p>时间：2024.12</p>
+    </div>
+
+    <script>
+        function generateCommand() {
+            // 获取输入内容
+            const input = document.getElementById('input').value.trim();
+            const lines = input.split('\n'); // 按行分割
+            const commandHeader = "29 00 03"; // 固定的命令头
+            const delayCommandHeader = "29 14 03"; // 延迟命令头
+            const delayValues = ["22 10 DB", "22 10 FB", "0D 10 01"]; // 默认的延时命令
+            const output = [];
+
+            // 遍历每一行寄存器表
+            lines.forEach(line => {
+                const values = line.split(',').map(item => item.trim().replace('0x', '').toUpperCase());
+                if (values.length > 0) {
+                    output.push(`${commandHeader} ${values.join(' ')}`);
+                }
+            });
+
+            if (output.length >= 3) {
+                output.splice(-3, 3); // 删除原来的最后三行
+                output.push("//下面的与复位有关，加delay");
+                output.push(`${delayCommandHeader} ${delayValues[0]}`);
+                output.push(`${delayCommandHeader} ${delayValues[1]}`);
+                output.push(`${delayCommandHeader} ${delayValues[2]}`);
+            }
+
+            document.getElementById('output').textContent = "panel-init-sequence = [\n" + output.map(line => "    " + line).join('\n') + "\n];";
+        }
+
+        function copyToClipboard() {
+            const outputElement = document.getElementById('output');
+            const textToCopy = outputElement.textContent;
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const successMessage = document.getElementById('copy-success');
+                successMessage.style.display = 'block'; // 显示“复制成功”提示
+                setTimeout(() => {
+                    successMessage.style.display = 'none'; // 2秒后隐藏提示
+                }, 2000);
+            }).catch(err => {
+                console.error('复制失败：', err);
+            });
+        }
+    </script>
+</body>
+</html>
