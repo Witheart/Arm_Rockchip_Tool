@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iperf3结果快速保存工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 700px;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        textarea, input, select, button {
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            width: 100%;
+            resize: none;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .flex {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .flex input {
+            width: 60px;
+            text-align: center;
+        }
+
+        .output {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #555;
+            word-wrap: break-word;
+        }
+
+        .description {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .button-container button {
+            width: 40%;
+            padding: 10px;
+            font-size: 1em;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #888;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .flex {
+                flex-direction: column;
+            }
+
+            .button-container button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 标题部分 -->
+    <h1>iperf3结果快速保存工具</h1>
+
+    <div class="container">
+        <div class="description">
+            请填写测试结果并自定义文件命名部分，点击保存后按需调整文件位置。
+        </div>
+        <div class="form-group">
+            <label for="testResult">测试结果文本</label>
+            <textarea id="testResult" rows="10" placeholder="请输入测试结果文本"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="customName">自定义版型</label>
+            <input type="text" id="customName" placeholder="请输入自定义版型">
+        </div>
+
+        <div class="form-group">
+            <label for="fileNamePart">文件名中的自定义部分</label>
+            <input type="text" id="fileNamePart" placeholder="请输入文件名中的自定义部分">
+            <button onclick="saveCustomPart()">保存自定义内容</button>
+            <div>
+                <label for="previousCustomParts">选择之前的自定义内容</label>
+                <select id="previousCustomParts" onchange="selectCustomPart()">
+                    <option value="">--请选择--</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="interface">选择网口</label>
+            <select id="interface">
+                <option value="eth0">eth0</option>
+                <option value="eth1">eth1</option>
+                <option value="eth2">eth2</option>
+                <option value="eth3">eth3</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="fileIndex">序号</label>
+            <div class="flex">
+                <button type="button" onclick="decrementIndex()">-</button>
+                <input type="number" id="fileIndex" value="0" min="0">
+                <button type="button" onclick="incrementIndex()">+</button>
+            </div>
+        </div>
+
+        <div class="button-container">
+            <button onclick="saveFile()">保存TXT文件</button>
+        </div>
+
+        <div class="output" id="output"></div>
+    </div>
+
+    <div class="footer">
+        作者：吴思含（Witheart）<br>
+        版本号：V1.0<br>
+        时间：2024.12
+    </div>
+
+    <script>
+        let customParts = []; // 用于存储用户输入的自定义内容
+
+        function incrementIndex() {
+            const indexInput = document.getElementById('fileIndex');
+            indexInput.value = parseInt(indexInput.value) + 1;
+        }
+
+        function decrementIndex() {
+            const indexInput = document.getElementById('fileIndex');
+            if (parseInt(indexInput.value) > 0) {
+                indexInput.value = parseInt(indexInput.value) - 1;
+            }
+        }
+
+        function saveFile() {
+            const testResult = document.getElementById('testResult').value;
+            const customName = document.getElementById('customName').value;
+            const fileNamePart = document.getElementById('fileNamePart').value;
+            const interfaceName = document.getElementById('interface').value;
+            const fileIndex = document.getElementById('fileIndex').value;
+
+            if (!testResult) {
+                alert('请输入测试结果文本！');
+                return;
+            }
+
+            // 获取当前时间
+            const now = new Date();
+            const timestamp = `${now.getMonth() + 1}${now.getDate()}_${now.getHours()}${now.getMinutes()}${now.getSeconds()}`;
+
+            // 按规则生成文件名
+            const fileName = `${customName}_${interfaceName}_${fileIndex}_${fileNamePart}_${timestamp}.txt`;
+
+            // 创建文本内容并生成下载链接
+            const blob = new Blob([testResult], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+
+            // 触发下载
+            link.click();
+
+            // 提示信息
+            const output = document.getElementById('output');
+            output.textContent = `文件已保存为：${fileName}，请根据需要调整文件位置。`;
+        }
+
+        function saveCustomPart() {
+            const fileNamePart = document.getElementById('fileNamePart').value.trim();
+            if (fileNamePart && !customParts.includes(fileNamePart)) {
+                customParts.push(fileNamePart); // 保存到数组中
+                updateCustomPartsDropdown(); // 更新下拉框
+            }
+        }
+
+        function updateCustomPartsDropdown() {
+            const dropdown = document.getElementById('previousCustomParts');
+            dropdown.innerHTML = '<option value="">--请选择--</option>'; // 重置下拉框
+            customParts.forEach(part => {
+                const option = document.createElement('option');
+                option.value = part;
+                option.textContent = part;
+                dropdown.appendChild(option);
+            });
+        }
+
+        function selectCustomPart() {
+            const dropdown = document.getElementById('previousCustomParts');
+            const selectedValue = dropdown.value;
+            if (selectedValue) {
+                document.getElementById('fileNamePart').value = selectedValue; // 将选中的值填入输入框
+            }
+        }
+    </script>
+</body>
+</html>
