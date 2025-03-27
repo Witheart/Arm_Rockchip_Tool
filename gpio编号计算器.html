@@ -233,7 +233,10 @@
 GPIO1_B0
 GPIO2_D7
 GPIO4_C4
-..."></textarea>
+或
+gpio66
+gpio190
+gpio154"></textarea>
     </div>
     <div class="buttons">
         <button id="compute-btn">计算</button>
@@ -331,6 +334,43 @@ GPIO编号 = 32 × 5（GPIO5为第五组） + 8 × 3（D对应3） + 6 = 160 + 2
             }, 2000); // 2秒后自动消失
         }
 
+        // 创建输出项
+        function createOutputItem(originalText, resultText) {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'output-item';
+
+            const textContainer = document.createElement('div');
+            textContainer.className = 'text-container';
+
+            const originalSpan = document.createElement('span');
+            originalSpan.className = 'original-text';
+            originalSpan.textContent = originalText;
+
+            const gpioSpan = document.createElement('span');
+            gpioSpan.className = 'gpio-text';
+            gpioSpan.textContent = resultText;
+
+            textContainer.appendChild(originalSpan);
+            textContainer.appendChild(gpioSpan);
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.textContent = '复制';
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(resultText)
+                    .then(() => {
+                        showCopyNotification(`已复制: ${resultText}`);
+                    })
+                    .catch(err => {
+                        console.error('复制失败:', err);
+                    });
+            });
+
+            itemDiv.appendChild(textContainer);
+            itemDiv.appendChild(copyBtn);
+            outputDiv.appendChild(itemDiv);
+        }
+
         // 计算按钮功能
         computeBtn.addEventListener('click', () => {
             const input = textarea.value;
@@ -342,59 +382,44 @@ GPIO编号 = 32 × 5（GPIO5为第五组） + 8 × 3（D对应3） + 6 = 160 + 2
                 const trimmedLine = line.trim();
                 if (trimmedLine === '') return; // 跳过空行
 
-                // 正则匹配 GPIO 格式，例如 GPIO1_B0 或 GPIO02_D7
-                const regex = /^GPIO(\d+)_([A-Z])(\d+)$/i;
-                const match = trimmedLine.match(regex);
+                // 正向匹配（GPIOx_Yz格式）
+                const forwardRegex = /^GPIO(\d+)_([A-Z])(\d+)$/i;
+                const forwardMatch = trimmedLine.match(forwardRegex);
 
-                if (match) {
-                    const groupNum = parseInt(match[1], 10);
-                    const portLetter = match[2].toUpperCase();
-                    const pinNum = parseInt(match[3], 10);
+                if (forwardMatch) {
+                    const groupNum = parseInt(forwardMatch[1], 10);
+                    const portLetter = forwardMatch[2].toUpperCase();
+                    const pinNum = parseInt(forwardMatch[3], 10);
 
                     // 计算 GPIO 编号
                     const groupValue = 32 * groupNum;
                     const letterValue = (portLetter.charCodeAt(0) - 65) * 8; // 'A' -> 0, 'B' -> 1, etc.
                     const gpioNumber = groupValue + letterValue + pinNum;
 
-                    // 创建输出项
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'output-item';
-
-                    const textContainer = document.createElement('div');
-                    textContainer.className = 'text-container';
-
-                    const originalSpan = document.createElement('span');
-                    originalSpan.className = 'original-text';
-                    originalSpan.textContent = trimmedLine;
-
-                    const gpioSpan = document.createElement('span');
-                    gpioSpan.className = 'gpio-text';
-                    gpioSpan.textContent = `gpio${gpioNumber}`;
-
-                    textContainer.appendChild(originalSpan);
-                    textContainer.appendChild(gpioSpan);
-
-                    const copyBtn = document.createElement('button');
-                    copyBtn.className = 'copy-btn';
-                    copyBtn.textContent = '复制';
-                    copyBtn.addEventListener('click', () => {
-                        navigator.clipboard.writeText(gpioSpan.textContent)
-                            .then(() => {
-                                showCopyNotification(`已复制: ${gpioSpan.textContent}`);
-                            })
-                            .catch(err => {
-                                console.error('复制失败:', err);
-                            });
-                    });
-
-                    itemDiv.appendChild(textContainer);
-                    itemDiv.appendChild(copyBtn);
-                    outputDiv.appendChild(itemDiv);
+                    createOutputItem(trimmedLine, `gpio${gpioNumber}`);
                 } else {
-                    // 如果格式不正确，显示错误信息
-                    const errorItem = document.createElement('div');
-                    errorItem.textContent = `格式错误: "${trimmedLine}" (第 ${index + 1} 行)`;
-                    errorDiv.appendChild(errorItem);
+                    // 反向匹配（gpio数字格式）
+                    const reverseRegex = /^gpio(\d+)$/i;
+                    const reverseMatch = trimmedLine.match(reverseRegex);
+                    
+                    if (reverseMatch) {
+                        const gpioNumber = parseInt(reverseMatch[1], 10);
+                        
+                        // 反向计算逻辑
+                        const groupNum = Math.floor(gpioNumber / 32);
+                        const remainder = gpioNumber % 32;
+                        const letterValue = Math.floor(remainder / 8);
+                        const pinNum = remainder % 8;
+                        const portLetter = String.fromCharCode(65 + letterValue);
+                        
+                        const gpioName = `GPIO${groupNum}_${portLetter}${pinNum}`;
+                        createOutputItem(trimmedLine, gpioName);
+                    } else {
+                        // 格式错误处理
+                        const errorItem = document.createElement('div');
+                        errorItem.textContent = `格式错误: "${trimmedLine}" (第 ${index + 1} 行)`;
+                        errorDiv.appendChild(errorItem);
+                    }
                 }
             });
         });
